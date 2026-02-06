@@ -3,7 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Máy Tính Tiền Thối v7</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Máy Tính Tiền">
+    
+    <link rel="manifest" href="manifest.json">
+    
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2652/2652218.png">
+
+    <title>Máy Tính Tiền Thối v8</title>
     <style>
         :root {
             --primary: #2ecc71;
@@ -85,48 +93,36 @@
     <div class="section">
         <span class="label-text">TIỀN HÀNG</span>
         <input type="text" id="itemAmount" class="input-main" value="0" 
-               inputmode="numeric" 
-               onfocus="clearValue(this)" 
-               oninput="handleLiveInput(this); calculate()"
-               ontouchstart="handleInputPressStart(this)" 
-               ontouchend="handleInputPressEnd(this)">
+               inputmode="numeric" onfocus="clearValue(this)" oninput="handleLiveInput(this); calculate()"
+               ontouchstart="handleInputPressStart(this)" ontouchend="handleInputPressEnd(this)">
     </div>
 
     <div class="section">
         <span class="label-text">TIỀN KHÁCH ĐƯA</span>
         <input type="text" id="totalGivenInput" class="input-main" value="0" 
-               inputmode="numeric" 
-               onfocus="clearValue(this)" 
-               oninput="handleLiveInput(this); syncFromInput()"
-               ontouchstart="handleInputPressStart(this, true)" 
-               ontouchend="handleInputPressEnd(this)">
+               inputmode="numeric" onfocus="clearValue(this)" oninput="handleLiveInput(this); syncFromInput()"
+               ontouchstart="handleInputPressStart(this, true)" ontouchend="handleInputPressEnd(this)">
         
         <p class="tip">Chạm mệnh giá để thêm | Giữ mệnh giá để xóa</p>
 
         <div class="money-grid">
             <div id="card-500" class="money-card" ontouchstart="handleStart(event, '500')" ontouchend="handleEnd(event, '500')">
-                <span class="denom">500.000</span>
-                <span id="badge-500" class="count-badge"></span>
+                <span class="denom">500.000</span><span id="badge-500" class="count-badge"></span>
             </div>
             <div id="card-200" class="money-card" ontouchstart="handleStart(event, '200')" ontouchend="handleEnd(event, '200')">
-                <span class="denom">200.000</span>
-                <span id="badge-200" class="count-badge"></span>
+                <span class="denom">200.000</span><span id="badge-200" class="count-badge"></span>
             </div>
             <div id="card-100" class="money-card" ontouchstart="handleStart(event, '100')" ontouchend="handleEnd(event, '100')">
-                <span class="denom">100.000</span>
-                <span id="badge-100" class="count-badge"></span>
+                <span class="denom">100.000</span><span id="badge-100" class="count-badge"></span>
             </div>
             <div id="card-50" class="money-card" ontouchstart="handleStart(event, '50')" ontouchend="handleEnd(event, '50')">
-                <span class="denom">50.000</span>
-                <span id="badge-50" class="count-badge"></span>
+                <span class="denom">50.000</span><span id="badge-50" class="count-badge"></span>
             </div>
             <div id="card-20" class="money-card" ontouchstart="handleStart(event, '20')" ontouchend="handleEnd(event, '20')">
-                <span class="denom">20.000</span>
-                <span id="badge-20" class="count-badge"></span>
+                <span class="denom">20.000</span><span id="badge-20" class="count-badge"></span>
             </div>
             <div id="card-10" class="money-card" ontouchstart="handleStart(event, '10')" ontouchend="handleEnd(event, '10')">
-                <span class="denom">10.000</span>
-                <span id="badge-10" class="count-badge"></span>
+                <span class="denom">10.000</span><span id="badge-10" class="count-badge"></span>
             </div>
         </div>
     </div>
@@ -142,73 +138,47 @@
 </div>
 
 <script>
+    // Đăng ký Service Worker cho PWA
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration failed:', err));
+        });
+    }
+
     let counts = { "500": 0, "200": 0, "100": 0, "50": 0, "20": 0, "10": 0 };
     const values = { "500": 500000, "200": 200000, "100": 100000, "50": 50000, "20": 20000, "10": 10000 };
     let timer, isLongPress = false;
     let inputTimer;
 
-    // Định dạng có dấu chấm
-    function formatNumber(n) {
-        return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-    }
+    function formatNumber(n) { return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."); }
+    function unformatNumber(s) { return parseFloat(s.toString().replace(/\./g, '')) || 0; }
 
-    // Bỏ dấu chấm để lấy số thuần túy
-    function unformatNumber(s) {
-        return parseFloat(s.toString().replace(/\./g, '')) || 0;
-    }
-
-    // XỬ LÝ NHẬP LIỆU THỜI GIAN THỰC
     function handleLiveInput(el) {
         let cursorPosition = el.selectionStart;
         let originalLength = el.value.length;
-        
-        // Lấy giá trị số thuần túy
         let rawValue = el.value.replace(/\./g, '');
-        if (rawValue === "") {
-            el.value = "0";
-            return;
-        }
-
-        // Định dạng lại số
-        let formattedValue = formatNumber(rawValue);
-        el.value = formattedValue;
-
-        // Điều chỉnh vị trí con trỏ để không bị nhảy khi thêm dấu chấm
+        if (rawValue === "") { el.value = "0"; return; }
+        el.value = formatNumber(rawValue);
         let newLength = el.value.length;
         cursorPosition = cursorPosition + (newLength - originalLength);
         el.setSelectionRange(cursorPosition, cursorPosition);
     }
 
-    function clearValue(el) {
-        if (unformatNumber(el.value) === 0) el.value = "";
-    }
+    function clearValue(el) { if (unformatNumber(el.value) === 0) el.value = ""; }
+    function syncFromInput() { for (let d in counts) counts[d] = 0; updateUI(); calculate(); }
 
-    function syncFromInput() {
-        for (let d in counts) counts[d] = 0;
-        updateUI();
-        calculate();
-    }
-
-    // NHẤN GIỮ ĐỂ XÓA
     function handleInputPressStart(el, isGiven = false) {
         el.classList.add('pressing-input');
         inputTimer = setTimeout(() => {
             el.value = "0";
-            if (isGiven) {
-                for (let d in counts) counts[d] = 0;
-                updateUI();
-            }
+            if (isGiven) { for (let d in counts) counts[d] = 0; updateUI(); }
             calculate();
             if (navigator.vibrate) navigator.vibrate(50);
         }, 800);
     }
 
-    function handleInputPressEnd(el) {
-        clearTimeout(inputTimer);
-        el.classList.remove('pressing-input');
-    }
+    function handleInputPressEnd(el) { clearTimeout(inputTimer); el.classList.remove('pressing-input'); }
 
-    // MỆNH GIÁ TIỀN
     function handleStart(e, denom) {
         isLongPress = false;
         e.currentTarget.classList.add('pressing');
@@ -223,10 +193,7 @@
     function handleEnd(e, denom) {
         clearTimeout(timer);
         e.currentTarget.classList.remove('pressing');
-        if (!isLongPress) {
-            counts[denom]++;
-            updateFromButtons();
-        }
+        if (!isLongPress) { counts[denom]++; updateFromButtons(); }
         setTimeout(() => { isLongPress = false; }, 50);
     }
 
@@ -242,13 +209,8 @@
         for (let d in counts) {
             const card = document.getElementById(`card-${d}`);
             const badge = document.getElementById(`badge-${d}`);
-            if (counts[d] > 0) {
-                card.classList.add('has-value');
-                badge.innerText = `x ${counts[d]}`;
-            } else {
-                card.classList.remove('has-value');
-                badge.innerText = "";
-            }
+            if (counts[d] > 0) { card.classList.add('has-value'); badge.innerText = `x ${counts[d]}`; }
+            else { card.classList.remove('has-value'); badge.innerText = ""; }
         }
     }
 
@@ -256,21 +218,9 @@
         let itemAmount = unformatNumber(document.getElementById('itemAmount').value);
         let totalGiven = unformatNumber(document.getElementById('totalGivenInput').value);
         let display = document.getElementById('changeDisplay');
-
-        if (totalGiven === 0 && itemAmount === 0) {
-            display.innerText = "0 đ";
-            display.className = "change-display";
-            return;
-        }
-
-        if (totalGiven < itemAmount) {
-            display.innerText = "Khách chưa đưa đủ tiền";
-            display.className = "change-display text-error";
-        } else {
-            let change = totalGiven - itemAmount;
-            display.innerText = formatNumber(change) + " đ";
-            display.className = "change-display text-ok";
-        }
+        if (totalGiven === 0 && itemAmount === 0) { display.innerText = "0 đ"; display.className = "change-display"; return; }
+        if (totalGiven < itemAmount) { display.innerText = "Khách chưa đưa đủ tiền"; display.className = "change-display text-error"; }
+        else { display.innerText = formatNumber(totalGiven - itemAmount) + " đ"; display.className = "change-display text-ok"; }
     }
 
     function showBig() {
@@ -280,6 +230,5 @@
         document.getElementById('overlay').style.display = 'flex';
     }
 </script>
-
 </body>
 </html>
